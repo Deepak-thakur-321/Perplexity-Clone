@@ -7,7 +7,8 @@ const chatsSchema = new mongoose.Schema({
    },
    title: {
       type: String,
-     default: "New Chat"
+     default: "New Chat",
+     required: true
    }
 })
 
