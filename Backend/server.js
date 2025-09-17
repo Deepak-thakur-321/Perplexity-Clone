@@ -1,4 +1,4 @@
-const app = require("../Perplexity/src/app")
+const app = require("../Backend/src/app")
 const connectDB = require("./src/DB/database")
 const socketServer = require("./src/sockets/socket.server")
 const http = require("http")
