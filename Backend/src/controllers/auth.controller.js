@@ -74,7 +74,7 @@ async function loginUser(req, res) {
          id: user._id,
          email: user.email,
          role: user.role
-      }, process.env.JWT_SECRET, { expiresIn: "1d" })
+      }, process.env.JWT_SECRET,)
 
       // Cookie Set //
       res.cookie("token", token)

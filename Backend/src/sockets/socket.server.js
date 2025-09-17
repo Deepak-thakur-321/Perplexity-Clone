@@ -43,12 +43,12 @@ function initSocket(httpServer) {
             });
 
             // Generate AI response
-            const aiRes = await aiService.generateResult(msg);
+            const aiRes = await aiService.generateResult(msg.text);
 
             // Emit AI response to frontend with same _id
             socket.emit("ai-response", {
                _id: savedMessage._id,
-               text: aiRes.text,
+               text: aiRes,
             });
          } catch (err) {
             console.error("AI error:", err);

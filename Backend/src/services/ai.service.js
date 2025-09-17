@@ -1,89 +1,65 @@
-const { GoogleGenAI } = require("@google/genai")
-
+const { GoogleGenAI } = require("@google/genai");
 
 const ai = new GoogleGenAI({
    apiKey: process.env.GEMINI_API_KEY
-})
+});
 
-
+// Simple non-streaming response
 async function generateResult(prompt) {
-
    const response = await ai.models.generateContent({
       model: "gemini-2.0-flash",
-      contents: prompt
-   })
+      contents: [
+         {
+            role: "user",
+            parts: [{ text: prompt }]
+         }
+      ]
+   });
 
-   return response.text
-
+   // ✅ Extract safe text
+   return response.text;
 }
 
+// Conversation memory
 const memory = [
    {
       role: "user",
-
-      parts: [{
-         text: "who are you ?"
-      }]
-
+      parts: [{ text: "who are you ?" }]
    },
    {
       role: "model",
-
-      parts: [{
-         text: "I am an AI created by Google"
-      }]
-
-   },
-   {
-      role: "user",
-
-      parts: [{
-         text: "what was my first question ?"
-      }]
-
-   },
-   {
-      role: "model",
-
-      parts: [{
-         text: "As  an AI, I don't have memory of past conversations. Therefore, I don't know what your first question to me was."
-      }]
-
+      parts: [{ text: "I am an AI created by Google" }]
    }
-]
+];
 
+// Streaming response
 async function generateStream(prompt, onData) {
-
    memory.push({
       role: "user",
-      parts: [{
-         text: prompt
-      }]
-   })
+      parts: [{ text: prompt }]
+   });
 
    const stream = await ai.models.generateContentStream({
       model: "gemini-2.0-flash",
       contents: memory
-   })
+   });
 
-   let responseText = ""
+   let responseText = "";
 
-   for await (const chunk of stream) {
-      responseText += chunk.text
-      onData(chunk.text)
+   // ✅ Properly extract stream chunks
+   for await (const chunk of stream.stream) {
+      const part = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      responseText += part;
+      onData(part);
    }
 
    memory.push({
       role: "model",
-      parts: [{
-         text: responseText
-      }]
-   })
-
+      parts: [{ text: responseText }]
+   });
 }
-
 
 module.exports = {
    generateResult,
    generateStream
-}
+};

@@ -46,7 +46,7 @@ export default function Home() {
          setActiveChatId(newChat._id);
          setMessages([]); // clear previous messages
       } catch (err) {
-         console.error("Failed to create chat:", err);
+         console.error("Failed to create chat:", err.response?.data || err.message);
       }
    };
 
@@ -115,6 +115,23 @@ export default function Home() {
       return () => newSocket.disconnect();
    }, []);
 
+
+   const handleDeleteChat = async (chatId) => {
+      try {
+         await axios.delete(`http://localhost:8080/api/chats/${chatId}`, { withCredentials: true });
+         setChats((prev) => prev.filter(chat => chat._id !== chatId));
+
+         // Clear messages if the deleted chat was active
+         if (activeChatId === chatId) {
+            setActiveChatId(null);
+            setMessages([]);
+         }
+      } catch (err) {
+         console.error("Failed to delete chat:", err.response?.data || err.message);
+      }
+   };
+
+
    // ------------------ JSX ------------------
 
    return (
@@ -129,16 +146,32 @@ export default function Home() {
             <div className="chat-list">
                {chats?.length > 0 ? (
                   chats.map((chat) => (
-                     <button
+                     <div
                         key={chat._id}
-                        className={`chat-item ${chat._id === activeChatId ? "active" : ""}`}
-                        onClick={() => {
-                           setActiveChatId(chat._id);
-                           setMessages([]); // clear messages when switching chat
-                        }}
+                        className={`chat-item-wrapper ${chat._id === activeChatId ? "active" : ""}`}
                      >
-                        <span style={{ flex: 1 }}>{chat.title}</span>
-                     </button>
+                        {/* Chat title */}
+                        <button
+                           className="chat-title-btn"
+                           onClick={() => {
+                              setActiveChatId(chat._id);
+                              setMessages([]); // clear messages when switching chat
+                           }}
+                        >
+                           <span className="chat-item-text">{chat.title}</span>
+                        </button>
+
+                        {/* Delete button */}
+                        <button
+                           className="delete-chat-btn"
+                           onClick={(e) => {
+                              e.stopPropagation(); // prevent opening chat when deleting
+                              handleDeleteChat(chat._id);
+                           }}
+                        >
+                           <span className="material-icons">Delete</span>
+                        </button>
+                     </div>
                   ))
                ) : (
                   <p>No chats available</p>
@@ -147,6 +180,8 @@ export default function Home() {
 
             <div className="sidebar-footer">Demo chat UI • Local state only</div>
          </aside>
+
+
 
          {/* Main Chat */}
          <main className="chat-main">
