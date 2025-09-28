@@ -44,7 +44,17 @@ async function registerUser(req, res) {
          sameSite: "none"
       });
 
-      return res.status(201).json({ message: "User Created Successfully" });
+      return res.status(201).json({
+         message: "User Created Successfully",
+         token,
+         user: {
+            id: user._id,
+            userName: user.userName,
+            email: user.email,
+            role: user.role
+         }
+      });
+
    } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal Server Error" });
@@ -59,14 +69,14 @@ async function loginUser(req, res) {
       const user = await userModel.findOne({ email })
 
       if (!user) {
-         return res.status(400).json({ message: "User Not Found" })
+         return res.status(401).json({ message: "User Not Found" })
       }
 
       // Password Compare //
       const isPasswordMatch = await bcrypt.compare(password, user.password)
 
       if (!isPasswordMatch) {
-         return res.status(400).json({ message: "Invalid Password" })
+         return res.status(401).json({ message: "Invalid Password" })
       }
 
       // JWt Token generate //
