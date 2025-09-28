@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import './Register.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 export default function Register() {
@@ -19,7 +19,7 @@ export default function Register() {
    const [touched, setTouched] = useState({});
    const [errorsFromServer, setErrorsFromServer] = useState(null);
 
-   // Compute validation errors
+   // Validation logic
    const errors = useMemo(() => {
       const e = {};
       if (!form.username.trim()) e.username = 'Username required';
@@ -46,15 +46,15 @@ export default function Register() {
       setTouched(t => ({ ...t, [name]: true }));
    }
 
+   // Toggle password visibility
    function togglePassword() {
       setForm(f => ({ ...f, showPassword: !f.showPassword }));
    }
 
-   // Handle form submission
+   // Handle form submit
    async function handleSubmit(e) {
       e.preventDefault();
 
-      // Mark all fields touched for validation
       setTouched({
          username: true,
          email: true,
@@ -63,7 +63,6 @@ export default function Register() {
          password: true,
       });
 
-      // Reset server errors
       setErrorsFromServer(null);
 
       if (!isValid) return;
@@ -79,7 +78,7 @@ export default function Register() {
             password: form.password,
          };
 
-         setSubmitted(payload); 
+         setSubmitted(payload);
 
          const response = await axios.post(
             'http://localhost:8080/api/auth/register',
@@ -88,15 +87,23 @@ export default function Register() {
          );
 
          console.log('Server response:', response.data);
+
+         // Optional: save token to localStorage if returned
+         if (response.data.token) localStorage.setItem('token', response.data.token);
+
          navigate('/home');
       } catch (err) {
-         console.error(err.response?.data || err.message);
-         if (err.response?.data) {
-            setErrorsFromServer(err.response.data);
+         console.error('Registration error:', err.response?.data || err.message);
+
+         if (err.response?.data?.errors) {
+            setErrorsFromServer(err.response.data.errors);
+         } else if (err.response?.data?.message) {
+            setErrorsFromServer([{ msg: err.response.data.message }]);
+         } else {
+            setErrorsFromServer([{ msg: 'Something went wrong' }]);
          }
       }
    }
-
 
    return (
       <div className="register-wrapper">
@@ -233,10 +240,12 @@ export default function Register() {
                   </div>
                </div>
 
-               {/* Server error */}
+               {/* Server errors */}
                {errorsFromServer && (
                   <div style={{ color: 'var(--color-danger)', marginTop: '0.5rem' }}>
-                     {typeof errorsFromServer === 'string' ? errorsFromServer : JSON.stringify(errorsFromServer)}
+                     {errorsFromServer.map((err, i) => (
+                        <div key={i}>{err.msg}</div>
+                     ))}
                   </div>
                )}
 
@@ -252,14 +261,25 @@ export default function Register() {
                      </div>
                   )}
                </div>
+
+               {/* Already have account */}
+               <p style={{ marginTop: '1rem', textAlign: 'center' }}>
+                  Already have an account?{' '}
+                  <Link to="/login" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+                     Login
+                  </Link>
+               </p>
             </form>
 
+            {/* Last submitted preview */}
             {submitted && (
                <div className="json-preview-wrapper" style={{ marginTop: 'var(--space-6)' }}>
                   <strong style={{ color: 'var(--color-text-dim)', fontWeight: 600 }}>Last submitted:</strong>
                   <pre style={{ margin: 0 }}>{JSON.stringify(submitted, null, 2)}</pre>
                </div>
             )}
+
+
 
             <footer className="register-footer">© {new Date().getFullYear()} Your Company. All rights reserved.</footer>
          </div>

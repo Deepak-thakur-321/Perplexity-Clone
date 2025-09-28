@@ -2,41 +2,73 @@ import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import "./Home.css";
+import api from "../api/Api";
 
-// Simple local counter for temporary IDs
 let msgCounter = 0;
 
 export default function Home() {
    const [chats, setChats] = useState([]);
-   const [socket, setSocket] = useState(null);
    const [messages, setMessages] = useState([]);
    const [activeChatId, setActiveChatId] = useState(null);
    const [input, setInput] = useState("");
    const [isThinking, setIsThinking] = useState(false);
+   const [socket, setSocket] = useState(null);
+   const [sidebarOpen, setSidebarOpen] = useState(false); // sidebar toggle state
 
    const textareaRef = useRef(null);
    const scrollRef = useRef(null);
 
-   // Get the active chat safely
-   const activeChat = chats?.find((c) => c._id === activeChatId) || null;
+   const activeChat = chats.find((c) => c._id === activeChatId) || null;
 
-   // ------------------ Chat Functions ------------------
+   // ------------------ Helpers ------------------
 
-   // Add message to state with optional id
    const addMessage = (role, content, _id = null) => {
       const id = _id || `local-${msgCounter++}`;
-      setMessages((prev) => [...prev, { role, content, _id: id }]);
+      setMessages((prev) => [...prev, { _id: id, role, content }]);
       return id;
    };
 
-   // Create new chat
-   const createChat = async () => {
-      const chatTitle = prompt("Enter chat title:");
-      if (!chatTitle) return;
+   // ------------------ API Calls ------------------
+
+   const fetchChats = async () => {
+      try {
+         const res = await api.get("/api/chats");
+         const serverChats = res.data.chats || [];
+         setChats(serverChats);
+
+         if (serverChats.length) {
+            setActiveChatId(serverChats[0]._id);
+            await fetchMessages(serverChats[0]._id);
+         } else {
+            await createChat(); // default "Getting Started"
+         }
+      } catch (err) {
+         console.error("Error fetching chats:", err);
+      }
+   };
+
+   const fetchMessages = async (chatId) => {
+      try {
+         const res = await api.get(`/api/chats/${chatId}/messages`);
+         setMessages(res.data.messages || []);
+      } catch (err) {
+         console.error("Error fetching messages:", err);
+         setMessages([]);
+      }
+   };
+
+   const createChat = async (titlePrompt = false) => {
+      let chatTitle;
+      if (titlePrompt) {
+         chatTitle = prompt("Enter chat title:");
+         if (!chatTitle) return;
+      } else {
+         chatTitle = "Getting Started";
+      }
 
       try {
          const res = await axios.post(
-            `http://localhost:8080/api/chats`,
+            "http://localhost:8080/api/chats",
             { title: chatTitle },
             { withCredentials: true }
          );
@@ -44,13 +76,26 @@ export default function Home() {
          const newChat = res.data.chat || { _id: `chat-${msgCounter++}`, title: chatTitle };
          setChats((prev) => [newChat, ...prev]);
          setActiveChatId(newChat._id);
-         setMessages([]); // clear previous messages
+         setMessages([]);
       } catch (err) {
          console.error("Failed to create chat:", err.response?.data || err.message);
       }
    };
 
-   // Send message
+   const handleDeleteChat = async (chatId) => {
+      try {
+         await axios.delete(`http://localhost:8080/api/chats/${chatId}`, { withCredentials: true });
+         setChats((prev) => prev.filter((chat) => chat._id !== chatId));
+
+         if (activeChatId === chatId) {
+            setActiveChatId(null);
+            setMessages([]);
+         }
+      } catch (err) {
+         console.error("Failed to delete chat:", err.response?.data || err.message);
+      }
+   };
+
    const handleSend = async () => {
       const trimmed = input.trim();
       if (!trimmed || isThinking || !socket) return;
@@ -66,7 +111,6 @@ export default function Home() {
       });
    };
 
-   // Handle Enter key for sending
    const handleKey = (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
          e.preventDefault();
@@ -76,7 +120,6 @@ export default function Home() {
 
    // ------------------ Effects ------------------
 
-   // Auto-resize textarea
    useEffect(() => {
       const el = textareaRef.current;
       if (!el) return;
@@ -84,23 +127,17 @@ export default function Home() {
       el.style.height = Math.min(el.scrollHeight, 220) + "px";
    }, [input]);
 
-   // Auto-scroll to bottom
    useEffect(() => {
       const container = scrollRef.current;
       if (container) container.scrollTop = container.scrollHeight;
    }, [messages.length, isThinking]);
 
-   // Fetch existing chats on load
    useEffect(() => {
-      axios
-         .get(`http://localhost:8080/api/chats`, { withCredentials: true })
-         .then((res) => setChats(res.data.chats || []))
-         .catch((err) => console.error("Error fetching chats:", err));
+      fetchChats();
    }, []);
 
-   // Setup Socket.IO
    useEffect(() => {
-      const newSocket = io(import.meta.env.VITE_SOCKET_URL, {
+      const newSocket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:8080", {
          withCredentials: true,
       });
 
@@ -115,57 +152,47 @@ export default function Home() {
       return () => newSocket.disconnect();
    }, []);
 
-
-   const handleDeleteChat = async (chatId) => {
-      try {
-         await axios.delete(`http://localhost:8080/api/chats/${chatId}`, { withCredentials: true });
-         setChats((prev) => prev.filter(chat => chat._id !== chatId));
-
-         // Clear messages if the deleted chat was active
-         if (activeChatId === chatId) {
-            setActiveChatId(null);
-            setMessages([]);
-         }
-      } catch (err) {
-         console.error("Failed to delete chat:", err.response?.data || err.message);
-      }
-   };
-
-
    // ------------------ JSX ------------------
 
    return (
       <div className="home-root">
+         {/* Mobile sidebar toggle button */}
+         <button
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen(prev => !prev)}
+         >
+            ☰
+         </button>
+
          {/* Sidebar */}
-         <aside className="chat-sidebar">
+         <aside className={`chat-sidebar ${sidebarOpen ? "active" : ""}`}>
             <div className="sidebar-header">Chats</div>
-            <button className="new-chat-btn" onClick={createChat}>
+            <button className="new-chat-btn" onClick={() => createChat(true)}>
                + New Chat
             </button>
 
             <div className="chat-list">
-               {chats?.length > 0 ? (
+               {chats.length > 0 ? (
                   chats.map((chat) => (
                      <div
                         key={chat._id}
                         className={`chat-item-wrapper ${chat._id === activeChatId ? "active" : ""}`}
                      >
-                        {/* Chat title */}
                         <button
                            className="chat-title-btn"
                            onClick={() => {
                               setActiveChatId(chat._id);
-                              setMessages([]); // clear messages when switching chat
+                              fetchMessages(chat._id);
+                              setSidebarOpen(false); // auto-close on mobile
                            }}
                         >
                            <span className="chat-item-text">{chat.title}</span>
                         </button>
 
-                        {/* Delete button */}
                         <button
                            className="delete-chat-btn"
                            onClick={(e) => {
-                              e.stopPropagation(); // prevent opening chat when deleting
+                              e.stopPropagation();
                               handleDeleteChat(chat._id);
                            }}
                         >
@@ -180,8 +207,6 @@ export default function Home() {
 
             <div className="sidebar-footer">Demo chat UI • Local state only</div>
          </aside>
-
-
 
          {/* Main Chat */}
          <main className="chat-main">
