@@ -8,7 +8,9 @@ connectDB()
 const httpServer = http.createServer(app)
 socketServer(httpServer)
 
-httpServer.listen(8080, () => {
+
+const port = process.env.PORT || 8080
+httpServer.listen(port, () => {
    console.log("Server is running on port 8080")
 })
 
