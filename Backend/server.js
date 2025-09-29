@@ -1,3 +1,4 @@
+require("dotenv").config()
 const app = require("../Backend/src/app")
 const connectDB = require("./src/DB/database")
 const socketServer = require("./src/sockets/socket.server")
@@ -8,6 +9,8 @@ connectDB()
 const httpServer = http.createServer(app)
 socketServer(httpServer)
 
+console.log(process.env.MONGO_URI)
+console.log(process.env.PORT)
 
 const port = process.env.PORT || 8080
 httpServer.listen(port, () => {

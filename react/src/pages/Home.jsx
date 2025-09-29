@@ -68,7 +68,7 @@ export default function Home() {
 
       try {
          const res = await axios.post(
-            "http://localhost:8080/api/chats",
+            `${import.meta.env.VITE_SERVER_URL}/api/chats`,
             { title: chatTitle },
             { withCredentials: true }
          );
@@ -84,7 +84,7 @@ export default function Home() {
 
    const handleDeleteChat = async (chatId) => {
       try {
-         await axios.delete(`http://localhost:8080/api/chats/${chatId}`, { withCredentials: true });
+         await axios.delete(`${import.meta.env.VITE_SERVER_URL}/api/chats/${chatId}`, { withCredentials: true });
          setChats((prev) => prev.filter((chat) => chat._id !== chatId));
 
          if (activeChatId === chatId) {

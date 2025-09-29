@@ -81,7 +81,7 @@ export default function Register() {
          setSubmitted(payload);
 
          const response = await axios.post(
-            'http://localhost:8080/api/auth/register',
+            `${import.meta.env.VITE_SERVER_URL}/api/auth/register`,
             payload,
             { withCredentials: true }
          );
