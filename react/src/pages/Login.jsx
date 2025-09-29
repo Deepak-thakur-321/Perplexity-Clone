@@ -51,7 +51,7 @@ export default function Login() {
          };
 
          const res = await axios.post(
-            "http://localhost:8080/api/auth/login",
+           `${import.meta.env.VITE_SERVER_URL}/api/auth/login`,
             payload,
             { withCredentials: true } // important for cookie/token
          );
